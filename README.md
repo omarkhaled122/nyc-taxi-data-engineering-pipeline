@@ -61,7 +61,68 @@ terraform apply
 ```
 ### 3. Run Kestra Workflow
 
+1. Start Kestra and its PostgreSQL backend using Docker Compose:
 
+```bash
+cd kestra/
+docker compose -f docker-compose.base.yml up -d
+````
+
+This will spin up:
+
+* The Kestra UI on `http://localhost:8080`
+* A PostgreSQL container for workflow metadata
+
+---
+
+2. Open your browser and go to [http://localhost:8080](http://localhost:8080)
+   Login using the default admin credentials (or configure if needed).
+
+---
+
+3. Create a new flow:
+
+* In the left menu, go to **Flows → Create Flow**
+* Paste the contents of `pipeline.yaml` into the editor
+* Click **Save**
+
+---
+
+4. Update your configuration variables (KV Keys):
+   Navigate to **Settings → Configuration → Variables (KV)** and add the following keys:
+
+| Key               | Value                                                          |
+| ----------------- | -------------------------------------------------------------- |
+| `GCP_CREDS`       | Paste your base64-encoded GCP service account JSON credentials |
+| `GCP_PROJECT_ID`  | Your GCP project ID                                            |
+| `GCP_LOCATION`    | e.g., `US` or your BigQuery dataset region                     |
+| `GCP_BUCKET_NAME` | Your GCP bucket name created by Terraform                      |
+
+---
+
+5. Optional: Modify the flow if needed
+- To change the default taxi type (`green` or `yellow`), modify the value in the `inputs:` section of the flow file.
+- You can disable the `purge_files` task if you want to retain intermediate output files for debugging.
+
+---
+
+6. Run the flow using Backfills
+
+To execute the flow for specific months (historical or current), use Kestra's **Backfill feature**:
+
+- In the Kestra UI, go to **Executions → Backfill**
+- Select the **flow** `zoomcamp_kestra_gcp_taxi_ingestion`
+- Choose the **start and end date** for the months you want to backfill
+- Under **inputs**, select:
+  - `green` or `yellow` for `taxi`
+
+> ✅ This will automatically run multiple executions, one for each month, fully orchestrated with no manual file edits.
+
+---
+
+After successful runs, your data will be:
+- Downloaded using `wget`
+- Uploaded to your configured GCS bucket
 
 ---
 
