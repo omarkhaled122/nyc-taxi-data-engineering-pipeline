@@ -49,4 +49,42 @@ This project showcases an end-to-end Data Engineering workflow using modern tool
 ```bash
 git clone https://github.com/omarkhaled122/nyc-taxi-data-engineering-pipeline.git
 cd nyc-taxi-data-engineering-pipeline
+```
+### 2. Set up your environment
+- Create a GCP project and enable BigQuery + Cloud Storage
+- Create a service account and save credentials JSON
+- Set up Terraform backend and initialize resources
+```bash
+cd terraform/
+terraform init
+terraform apply
+```
+### 3. Run Kestra Workflow
+
+
+
+---
+
+## 📊 Example Output
+
+* `green_trips_raw`: Ingested table in BigQuery
+
+---
+
+## 🙋‍♂️ Author
+
+**Omar Khaled Elshiekh**
+[LinkedIn](https://linkedin.com/in/omar-elsheikh-372997200) • [GitHub](https://github.com/omarkhaled122)
+
+---
+
+## 💡 Future Work
+
+* Use dbt on top of BigQuery to apply Analytics Engineering
+* Add Apache Airflow version
+* Add real-time ingestion with Kafka or Pub/Sub
+* Add Looker Studio dashboard or Metabase visualization
+
+
+
 
