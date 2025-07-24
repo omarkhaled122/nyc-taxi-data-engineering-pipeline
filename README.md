@@ -52,7 +52,13 @@ cd nyc-taxi-data-engineering-pipeline
 ```
 ### 2. Set up your environment
 - Create a GCP project and enable BigQuery + Cloud Storage
-- Create a service account and save credentials JSON
+- Create a service account and save credentials JSON, then change the default value for the **`credentials`** variable in **variable.tf**
+```terraform
+variable "credentials" {
+  description = "Path to the Credentials file"
+  default     = "./Keys/engaged-diode-459120-c8-be8fa656490a.json" # Add your credentials file's path here
+}
+```
 - Set up Terraform backend and initialize resources
 ```bash
 cd terraform/
