@@ -1,0 +1,47 @@
+id: taxi_gcp_create_native_sub_tables_from_buckets
+namespace: zoomcamp
+
+inputs:
+  - id: taxi
+    type: SELECT
+    displayName: Select taxi type
+    values: [yellow, green]
+    defaults: green
+
+variables:
+  sub_file: "{{ kv('GCP_DATASET') }}.{{inputs.taxi}}_tripdata_{{trigger.date | date('yyyy-MM')}}"
+tasks:
+  - id: set_label
+    type: io.kestra.plugin.core.execution.Labels
+    labels:
+      taxi: "{{inputs.taxi}}"
+  - id: create_native_sub_table
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      LOAD DATA OVERWRITE `{{render(vars.sub_file)}}`
+      FROM FILES (
+        format = 'PARQUET',
+        uris = ['gs://{{kv('GCP_BUCKET_NAME')}}/{{inputs.taxi}}_tripdata_{{trigger.date | date('yyyy-MM')}}.parquet']
+      );
+
+pluginDefaults:
+  - type: io.kestra.plugin.gcp
+    values:
+      serviceAccount: "{{kv('GCP_CREDS')}}"
+      projectId: "{{kv('GCP_PROJECT_ID')}}"
+      location: "{{kv('GCP_LOCATION')}}"
+      bucket: "{{kv('GCP_BUCKET_NAME')}}"
+
+
+triggers:
+  - id: green_trigger
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 9 1 * *"
+    inputs:
+      taxi: green
+  
+  - id: yellow_trigger
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 9 1 * *"
+    inputs:
+      taxi: yellow

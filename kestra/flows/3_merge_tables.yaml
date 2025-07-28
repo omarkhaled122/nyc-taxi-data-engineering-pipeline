@@ -1,0 +1,105 @@
+id: merge_sub_tables
+namespace: zoomcamp
+
+inputs:
+  - id: taxi
+    type: SELECT
+    displayName: Select taxi type
+    values: [yellow, green]
+    defaults: green
+
+variables:
+  cummulative_table: "{{ kv('GCP_DATASET') }}.{{inputs.taxi }}_tripdata"
+
+tasks:
+  - id: fix_condition_if_green
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ inputs.taxi == 'green' }}"
+    then:
+    - id: fix_type_issue_green
+      type: io.kestra.plugin.gcp.bigquery.Query
+      sql: |
+        DECLARE tables ARRAY<STRING>;
+        DECLARE i INT64 DEFAULT 0;
+
+        -- Get all matching table names
+        SET tables = (
+          SELECT ARRAY_AGG(table_name)
+          FROM `{{ kv('GCP_DATASET') }}.INFORMATION_SCHEMA.TABLES`
+          WHERE table_name LIKE '{{ inputs.taxi }}_tripdata_%'
+        );
+
+        -- Loop through each table and update it
+        WHILE i < ARRAY_LENGTH(tables) DO
+          EXECUTE IMMEDIATE FORMAT('''
+            CREATE OR REPLACE TABLE `{{ kv('GCP_DATASET') }}.%s` AS
+            SELECT 
+              * EXCEPT(ehail_fee),
+              CAST(ehail_fee AS FLOAT64) AS ehail_fee
+            FROM `{{ kv('GCP_DATASET') }}.%s`
+          ''', tables[OFFSET(i)], tables[OFFSET(i)]);
+          
+          SET i = i + 1;
+        END WHILE;
+
+  - id: fix_condition_if_yellow
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ inputs.taxi == 'yellow' }}"
+    then:
+    - id: fix_type_issue_yellow
+      type: io.kestra.plugin.gcp.bigquery.Query
+      sql: |
+        DECLARE tables ARRAY<STRING>;
+        DECLARE i INT64 DEFAULT 0;
+
+        -- Get all matching table names
+        SET tables = (
+          SELECT ARRAY_AGG(table_name)
+          FROM `{{ kv('GCP_DATASET') }}.INFORMATION_SCHEMA.TABLES`
+          WHERE table_name LIKE '{{ inputs.taxi }}_tripdata_%'
+        );
+
+        -- Loop through each table and update it
+        WHILE i < ARRAY_LENGTH(tables) DO
+          EXECUTE IMMEDIATE FORMAT('''
+            CREATE OR REPLACE TABLE `{{ kv('GCP_DATASET') }}.%s` AS
+            SELECT 
+              * EXCEPT(airport_fee),
+              CAST(airport_fee AS FLOAT64) AS airport_fee
+            FROM `{{ kv('GCP_DATASET') }}.%s`
+          ''', tables[OFFSET(i)], tables[OFFSET(i)]);
+          
+          SET i = i + 1;
+        END WHILE;
+
+  - id: create_cummulative_native_table
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      CREATE OR REPLACE TABLE `{{ kv('GCP_DATASET') }}.{{inputs.taxi}}_tripdata` AS
+      SELECT * 
+      FROM `{{ kv('GCP_DATASET') }}.{{inputs.taxi}}_tripdata_*`;
+
+  - id: drop_sub_tables
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      DECLARE table_names ARRAY<STRING>;
+      DECLARE i INT64 DEFAULT 0;
+
+      -- Get all matching table names
+      SET table_names = (
+        SELECT ARRAY_AGG(CONCAT('`', table_catalog, '.', table_schema, '.', table_name, '`'))
+        FROM `{{ kv('GCP_DATASET') }}.INFORMATION_SCHEMA.TABLES`
+        WHERE table_name LIKE '{{inputs.taxi}}_tripdata_%'
+      );
+
+      -- Loop through and drop each table
+      WHILE i < ARRAY_LENGTH(table_names) DO
+        EXECUTE IMMEDIATE CONCAT('DROP TABLE ', table_names[OFFSET(i)]);
+        SET i = i + 1;
+      END WHILE;
+pluginDefaults:
+  - type: io.kestra.plugin.gcp
+    values:
+      serviceAccount: "{{kv('GCP_CREDS')}}"
+      projectId: "{{kv('GCP_PROJECT_ID')}}"
+      location: "{{kv('GCP_LOCATION')}}"
