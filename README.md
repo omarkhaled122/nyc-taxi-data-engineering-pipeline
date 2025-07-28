@@ -116,8 +116,7 @@ This will spin up:
 
 To execute the flow for specific months (historical or current), use Kestra's **Backfill feature**:
 
-- In the Kestra UI, go to **Executions → Backfill**
-- Select the **flow** `zoomcamp_kestra_gcp_taxi_ingestion`
+- In the top menue in the **flow** `zoomcamp_kestra_gcp_taxi_ingestion` page, go to **Triggers → Backfill executions** (select the green or the yellow one there's no difference)
 - Choose the **start and end date** for the months you want to backfill
 - Under **inputs**, select:
   - `green` or `yellow` for `taxi`
@@ -134,7 +133,7 @@ After successful runs, your data will be:
 
 ## 📊 Example Output
 
-* `green_trips_raw`: Ingested table in BigQuery
+* `green_tripdata_2025-01.parquet`: File in the GCP Bucket
 
 ---
 
