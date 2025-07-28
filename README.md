@@ -23,23 +23,11 @@ This project showcases an end-to-end Data Engineering workflow using modern tool
 
 ---
 
-## 📁 Project Structure
-
-| Folder / File       | Description                                    |
-|---------------------|------------------------------------------------|
-| `kestra/`           | Workflow definition for orchestrating ingestion |
-| `terraform/`        | Terraform modules to provision GCP resources   |
-| `docker/`           | Dockerfile for ingestion container             |
-| `sql/`              | Example queries and validation scripts         |
-| `README.md`         | Project overview and instructions              |
-
----
-
 ## 🔄 Pipeline Overview
 
-1. **Ingest**: Download Parquet files from NYC Open Data
-2. **Stage**: Upload to GCP Cloud Storage
-3. **Store**: Load into BigQuery via Kestra
+1. **Ingest**: Download Parquet files from NYC Open Data and upload to GCP buckets
+2. **Stage**: Load GCP buckets into BQ as native subtables
+3. **Store**: Merge subtables as one cumulative table
 
 ---
 
@@ -71,7 +59,7 @@ terraform apply
 
 ```bash
 cd kestra/
-docker compose -f docker-compose.base.yml up -d
+docker compose -f docker-compose.yml up -d
 ````
 
 This will spin up:
@@ -82,20 +70,21 @@ This will spin up:
 ---
 
 2. Open your browser and go to [http://localhost:8080](http://localhost:8080)
-   Login using the default admin credentials (or configure if needed).
 
 ---
 
 3. Create a new flow:
 
-* In the left menu, go to **Flows → Create Flow**
-* Paste the contents of `pipeline.yaml` into the editor
-* Click **Save**
+* In the left menu, go to **Flows → Create Flow → Import**
+* Import the 3 flows in `kestra/flows/`
+
 
 ---
 
 4. Update your configuration variables (KV Keys):
    Navigate to **Settings → Configuration → Variables (KV)** and add the following keys:
+
+**Note: Select `zoomcamp` as the namespace**
 
 | Key               | Value                                                          |
 | ----------------- | -------------------------------------------------------------- |
@@ -103,38 +92,39 @@ This will spin up:
 | `GCP_PROJECT_ID`  | Your GCP project ID                                            |
 | `GCP_LOCATION`    | e.g., `US` or your BigQuery dataset region                     |
 | `GCP_BUCKET_NAME` | Your GCP bucket name created by Terraform                      |
+| `GCP_DATASET`     | Your BigQuery 
 
 ---
 
-5. Optional: Modify the flow if needed
-- To change the default taxi type (`green` or `yellow`), modify the value in the `inputs:` section of the flow file.
-- You can disable the `purge_files` task if you want to retain intermediate output files for debugging.
-
----
-
-6. Run the flow using Backfills
+5. Execute the flow `1_ingesting_into_gcp.yaml` using Backfills
 
 To execute the flow for specific months (historical or current), use Kestra's **Backfill feature**:
 
-- In the top menue in the **flow** `zoomcamp_kestra_gcp_taxi_ingestion` page, go to **Triggers → Backfill executions** (select the green or the yellow one there's no difference)
+- In the top menue in the **flow** `1_ingesting_into_gcp.yaml` page, go to **Triggers → Backfill executions** (select the green or the yellow one there's no difference)
 - Choose the **start and end date** for the months you want to backfill
 - Under **inputs**, select:
   - `green` or `yellow` for `taxi`
 
 > ✅ This will automatically run multiple executions, one for each month, fully orchestrated with no manual file edits.
 
----
-
 After successful runs, your data will be:
 - Downloaded using `wget`
-- Uploaded to your configured GCS bucket
+- Uploaded to your configured GCP bucket
 
----
-
-## 📊 Example Output
-
+📊 Example Output
 * `green_tripdata_2025-01.parquet`: File in the GCP Bucket
 
+6- Execute `2_create_native_subtables.yaml` the same way, and choose the same **start and end date** you chose for the first flow.
+After successful runs, new tables will be created in BigQuery in your dataset under the project you created using the files in the GCP buket
+📊 Example Output
+* `green_tripdata_2025-01`: Table in the BQ Dataset
+
+7- Execute `3_merge_tables.yaml`, select the input taxi (yellow or green).
+- It will create a new cumulative table (if not created before)
+- Merge all the subtables with the same input type (yellow or green) into that table
+- Delete the subtables
+📊 Example Output
+* `green_tripdata`: Table in the BQ Dataset
 ---
 
 ## 🙋‍♂️ Author
